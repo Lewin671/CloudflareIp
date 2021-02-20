@@ -1,19 +1,35 @@
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
+import java.io.IOException
 import java.util.concurrent.ConcurrentSkipListSet
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
 
 class IpScanner {
     companion object {
-        private const val BASE_IP = "2606:4700:"
-        private val ipType: IpType = IPV6
+
+        private val ipType: IpType = IPV4
+
+        private val BASE_IP =
+            if (ipType is IPV6) {
+                "2606:4700:"
+            } else {
+                "104.21.79."
+            }
+
         private val ipNumber = if (ipType is IPV6) {
-            65536
+            65535
         } else {
-            255
+            254
         }
     }
 
     private val client = RequestUtil.getClient()
     private val set = ConcurrentSkipListSet<String>()
+
+    // 处理完的请求
+    private val dealtNumber = AtomicInteger(0)
 
     fun run() {
         println("start to scan ip")
@@ -21,8 +37,11 @@ class IpScanner {
             generateIpList()
                 .parallelStream()
                 .forEach {
-                    doRequest(it)
+                    doRequestAsync(it)
                 }
+            while (dealtNumber.get() < ipNumber) {
+                Thread.yield()
+            }
         }
         println("finish scanning ip, using $timeCost ms")
 
@@ -31,6 +50,7 @@ class IpScanner {
         println("finish writing location set")
 
         Logger.close()
+        client.dispatcher.executorService.shutdown();   //清除并关闭线程池
     }
 
 
@@ -51,8 +71,31 @@ class IpScanner {
             println("ip $ip error!")
         }
 
+        println("dealt number is ${dealtNumber.incrementAndGet()}")
     }
 
+    private fun doRequestAsync(ip: String) {
+        val url = getUrl(ip)
+        client.newCall(RequestUtil.getRequest(url))
+            .enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    println("ip $ip error!")
+                    println("dealt number is ${dealtNumber.incrementAndGet()}")
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    if (response.body != null) {
+                        val location = getLocation(response.body!!.string())
+                        Logger.write("ip: $ip, location: $location")
+                        set.add(location)
+                    } else {
+                        println("$ip response body is null")
+                    }
+
+                    println("dealt number is ${dealtNumber.incrementAndGet()}")
+                }
+            })
+    }
 
     // 从response文本中获取地点
     private fun getLocation(responseText: String): String {
@@ -65,7 +108,7 @@ class IpScanner {
     }
 
     // 生成IP列表
-    private fun generateIpList(start: Int = 1, end: Int = ipNumber): List<String> {
+    private fun generateIpList(start: Int = 1, end: Int = ipNumber + 1): List<String> {
         val result = ArrayList<String>()
 
         for (i in start until end) {

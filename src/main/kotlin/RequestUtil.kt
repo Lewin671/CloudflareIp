@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 
 object RequestUtil {
-    private const val TIMEOUT = 3L;
+    private const val TIMEOUT = 3L
 
     // 返回一个request对象
     fun getRequest(url: String): Request {
