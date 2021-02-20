@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 
 object RequestUtil {
-    private const val TIMEOUT = 3L
+    private const val TIMEOUT = 2L
 
     // 返回一个request对象
     fun getRequest(url: String): Request {
@@ -19,5 +19,9 @@ object RequestUtil {
             .connectTimeout(TIMEOUT, TimeUnit.SECONDS)
             .retryOnConnectionFailure(false)
             .build()
+            .also {
+                it.dispatcher.maxRequests = 512
+                it.dispatcher.maxRequestsPerHost = 256
+            }
     }
 }

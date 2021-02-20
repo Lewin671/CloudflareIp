@@ -59,14 +59,7 @@ class IpScanner {
         val url = getUrl(ip)
         try {
             val response = client.newCall(RequestUtil.getRequest(url)).execute()
-
-            if (response.body != null) {
-                val location = getLocation(response.body!!.string())
-                Logger.write("ip: $ip, location: $location")
-                set.add(location)
-            } else {
-                println("$ip response body is null")
-            }
+            onSucceed(response, ip)
         } catch (e: Exception) {
             println("ip $ip error!")
         }
@@ -84,23 +77,27 @@ class IpScanner {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    if (response.body != null) {
-                        val responseText = response.body!!.string()
-
-                        if(responseText.isNotEmpty()) {
-                            val location = getLocation(responseText)
-                            Logger.write("ip: $ip, location: $location")
-                            set.add(location)
-                        }else{
-                            println("empty response")
-                        }
-                    } else {
-                        println("$ip response body is null")
-                    }
-
+                    onSucceed(response, ip)
                     println("dealt number is ${dealtNumber.incrementAndGet()}")
                 }
             })
+    }
+
+    private fun onSucceed(response: Response, ip: String) {
+        if (response.body != null) {
+            val responseText = response.body!!.string()
+
+            if (responseText.isNotEmpty()) {
+                val location = getLocation(responseText)
+                Logger.write("ip: $ip, location: $location")
+                set.add(location)
+                println("request $ip is ok")
+            } else {
+                println("empty response from $ip")
+            }
+        } else {
+            println("$ip response body is null")
+        }
     }
 
     // 从response文本中获取地点
