@@ -9,7 +9,7 @@ import kotlin.system.measureTimeMillis
 class IpScanner {
     companion object {
 
-        private val ipType: IpType = IPV4
+        private val ipType: IpType = IPV6
 
         private val BASE_IP =
             if (ipType is IPV6) {
@@ -85,9 +85,15 @@ class IpScanner {
 
                 override fun onResponse(call: Call, response: Response) {
                     if (response.body != null) {
-                        val location = getLocation(response.body!!.string())
-                        Logger.write("ip: $ip, location: $location")
-                        set.add(location)
+                        val responseText = response.body!!.string()
+
+                        if(responseText.isNotEmpty()) {
+                            val location = getLocation(responseText)
+                            Logger.write("ip: $ip, location: $location")
+                            set.add(location)
+                        }else{
+                            println("empty response")
+                        }
                     } else {
                         println("$ip response body is null")
                     }
